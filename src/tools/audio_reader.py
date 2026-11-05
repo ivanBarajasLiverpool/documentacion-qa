@@ -1,10 +1,13 @@
-"""Módulo de lectura de audio y transcripción local (FFmpeg + Faster-Whisper) con caché en disco."""
+"""Módulo de lectura de audio y transcripción local (FFmpeg/PyAV + Faster-Whisper) con caché en disco."""
 
+import itertools
 import os
 from pathlib import Path
 import subprocess
 import tempfile
+import av
 from faster_whisper import WhisperModel
+import numpy as np
 from src.config.settings import (
     DEFAULT_LANGUAGE,
     DEFAULT_WHISPER_COMPUTE_TYPE,
@@ -12,6 +15,31 @@ from src.config.settings import (
     OUTPUT_TRANSCRIPTS_DIR,
     ensure_directories,
 )
+
+
+def _decode_audio_pyav(file_path: str, sampling_rate: int = 16000) -> np.ndarray:
+    """Decodifica el flujo de audio de un video a un arreglo float32 mono a 16kHz usando PyAV."""
+    resampler = av.audio.resampler.AudioResampler(
+        format="s16",
+        layout="mono",
+        rate=sampling_rate,
+    )
+    frames_list: list[np.ndarray] = []
+    with av.open(file_path, mode="r") as container:
+        if not container.streams.audio:
+            raise ValueError("El archivo de video no contiene pistas de audio.")
+        audio_stream = container.streams.audio[0]
+        for frame in container.decode(audio_stream):
+            for resampled_frame in resampler.resample(frame):
+                frames_list.append(resampled_frame.to_ndarray())
+        for resampled_frame in resampler.resample(None):
+            frames_list.append(resampled_frame.to_ndarray())
+
+    if not frames_list:
+        return np.zeros(0, dtype=np.float32)
+
+    pcm_data = np.concatenate(frames_list, axis=1).reshape(-1)
+    return pcm_data.astype(np.float32) / 32768.0
 
 
 def transcribe_video_local(
@@ -50,27 +78,8 @@ def transcribe_video_local(
         temp_wav_path = tmp_audio.name
 
     try:
-        # 1. Extraer audio a WAV mono 16kHz usando ffmpeg local
-        ffmpeg_cmd = [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(resolved_video),
-            "-vn",
-            "-acodec",
-            "pcm_s16le",
-            "-ar",
-            "16000",
-            "-ac",
-            "1",
-            temp_wav_path,
-        ]
-        subprocess.run(
-            ffmpeg_cmd,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        # 1. Decodificar audio a memoria a 16kHz mono (compatible con cualquier versión de PyAV y sin requerir ffmpeg.exe externo)
+        audio_input = _decode_audio_pyav(str(resolved_video), sampling_rate=16000)
 
         # 2. Transcribir localmente con faster-whisper
         model = WhisperModel(
@@ -79,7 +88,7 @@ def transcribe_video_local(
             compute_type=DEFAULT_WHISPER_COMPUTE_TYPE,
         )
         segments, info = model.transcribe(
-            temp_wav_path,
+            audio_input,
             language=language,
             beam_size=5,
             vad_filter=True,
