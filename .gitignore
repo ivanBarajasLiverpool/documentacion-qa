@@ -54,6 +54,7 @@ data/outputs/frames/*
 !data/outputs/frames/.gitkeep
 data/outputs/matrices/*
 !data/outputs/matrices/.gitkeep
+!data/outputs/matrices/*.md
 
 # Temporary media & Whisper model caches
 *.wav

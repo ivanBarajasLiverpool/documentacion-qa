@@ -1,6 +1,6 @@
 # Framework Multiagente Generador de Matrices de Pruebas de Aceptación (MPA)
 
-Framework multiagente en Python que transforma grabaciones de video de pruebas o sesiones de usuario, junto con documentación funcional y URLs, en **Matrices de Pruebas de Aceptación (MPA)** estructuradas paso a paso en formato Markdown (`.md`).
+Framework multiagente en Python construido sobre el **Google Antigravity SDK** que transforma grabaciones de video de pruebas o sesiones de usuario, junto con documentación funcional y URLs, en **Matrices de Pruebas de Aceptación (MPA)** estructuradas paso a paso en formato Markdown (`.md`).
 
 ---
 
@@ -16,6 +16,9 @@ Framework multiagente en Python que transforma grabaciones de video de pruebas o
   - Extracción de audio local mediante **FFmpeg** (WAV mono 16kHz) y transcripción con marcas de tiempo mediante **Faster-Whisper** (`int8` + filtro VAD).
   - Sistema de **caché automático de transcripciones** en `data/outputs/transcripts/` para evitar reprocesar videos en ejecuciones posteriores.
   - Extracción precisa de fotogramas clave (`.png`) por segundo exacto mediante **OpenCV**.
+- **Flexibilidad de Autenticación y Consumo de Tokens**:
+  - Soporte nativo para consumir **tokens incluidos en tu suscripción de Antigravity IDE / CLI (`agy`)** mediante descubrimiento automático de `skills.json` y `.agents/rules/`.
+  - Soporte en el SDK de Python para **Workload Identity Federation (WIF) / ADC** en Vertex AI (sin llaves estáticas), **Vertex AI Express API Tokens** y **Gemini Developer API Keys**.
 - **Diseño Basado en Agent Skills y Contratos Pydantic**:
   - Conocimiento procedimental desacoplado en `skills/*/SKILL.md` (*Progressive Disclosure*) y estándares globales en `.agents/rules/qa_standards.md`.
   - Validación estricta de la matriz con **Pydantic** antes de exportar la tabla final a Markdown (`.md`).
@@ -54,7 +57,7 @@ mpa_video_agents/
 ├── .agents/
 │   └── rules/
 │       └── qa_standards.md               # Reglas globales inmutables del estándar QA
-├── skills/                               # Catálogo de Agent Skills cargado vía skills_paths
+├── skills/                               # Catálogo de Agent Skills cargado vía skills_paths y skills.json
 │   ├── context-synthesis/
 │   │   └── SKILL.md                      # Síntesis de documentación y URLs
 │   ├── mpa-drafting/
@@ -67,7 +70,7 @@ mpa_video_agents/
 │       └── SKILL.md                      # Checklist del Patrón de Reflexión (atomicidad y huecos)
 ├── src/
 │   ├── config/
-│   │   └── settings.py                   # Configuración centralizada de rutas y modelo Whisper
+│   │   └── settings.py                   # Configuración de rutas, Whisper y resolución de autenticación (WIF/API)
 │   ├── schemas/
 │   │   └── mpa_schema.py                 # Esquemas Pydantic de la Matriz de Pruebas de Aceptación
 │   ├── tools/
@@ -86,6 +89,7 @@ mpa_video_agents/
 │       ├── transcripts/                  # Transcripciones .txt con marcas de tiempo (caché)
 │       ├── frames/                       # Capturas .png extraídas por OpenCV por video
 │       └── matrices/                     # Matrices finales generadas en formato .md
+├── skills.json                           # Registro declarativo de skills para Antigravity IDE / CLI
 ├── main.py                               # Punto de entrada interactivo por consola
 └── requirements.txt                      # Dependencias de Python
 ```
@@ -99,11 +103,10 @@ mpa_video_agents/
    - Windows (Winget): `winget install Gyan.FFmpeg`
    - Linux (Ubuntu/Debian): `sudo apt install ffmpeg`
    - macOS (Homebrew): `brew install ffmpeg`
-3. **API Key de Gemini** configurada en la variable de entorno `GEMINI_API_KEY`.
 
 ---
 
-## Instalación y Configuración
+## Instalación
 
 1. Clonar el repositorio y acceder al directorio:
    ```bash
@@ -122,15 +125,62 @@ mpa_video_agents/
    pip install -r requirements.txt
    ```
 
-3. Configurar la variable de entorno `GEMINI_API_KEY`:
-   ```powershell
-   # En Windows (PowerShell)
-   $env:GEMINI_API_KEY="tu_api_key_aqui"
-   ```
-   ```bash
-   # En Linux / macOS
-   export GEMINI_API_KEY="tu_api_key_aqui"
-   ```
+---
+
+## Modos de Autenticación y Consumo de Tokens
+
+Este proyecto soporta **4 modalidades** para consumir tokens según tu entorno de trabajo (individual, empresarial con GCP o dentro del ecosistema Antigravity):
+
+### Modo 1: Consumo de Tokens Nativos de Antigravity (IDE / App 2.0 / CLI `agy`)
+Gracias a los archivos `skills.json` y `.agents/rules/qa_standards.md`, puedes abrir esta carpeta como tu **Workspace activo en Antigravity IDE** o ejecutar `agy` en la raíz del proyecto.
+- El agente nativo de Antigravity descubrirá automáticamente todas las skills y reglas del proyecto.
+- Podrás pedirle en el chat de Antigravity que ejecute las herramientas de `src/tools/` y coordine los subagentes consumiendo **directamente los tokens incluidos en tu suscripción de Antigravity**, sin configurar llaves externas.
+
+### Modo 2: Workload Identity Federation (WIF) / ADC en Vertex AI (Recomendado para Empresas y CI/CD)
+Permite autenticar el SDK de Python contra Google Cloud / Vertex AI sin utilizar API Keys estáticas, federando identidades desde GitHub Actions, GitLab, Azure AD, Okta o AWS:
+
+```powershell
+# En Windows (PowerShell)
+$env:USE_VERTEX_AI="true"
+$env:GOOGLE_CLOUD_PROJECT="tu-id-proyecto-gcp"
+$env:GOOGLE_CLOUD_LOCATION="us-central1"
+# Ruta al archivo JSON de configuración de credenciales de Workload Identity Pool:
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\ruta\a\wif-credential-config.json"
+```
+```bash
+# En Linux / macOS
+export USE_VERTEX_AI="true"
+export GOOGLE_CLOUD_PROJECT="tu-id-proyecto-gcp"
+export GOOGLE_CLOUD_LOCATION="us-central1"
+export GOOGLE_APPLICATION_CREDENTIALS="/ruta/a/wif-credential-config.json"
+```
+> **Nota para desarrollo local con ADC:** Si ya iniciaste sesión con `gcloud auth application-default login`, solo necesitas definir `USE_VERTEX_AI="true"` y `GOOGLE_CLOUD_PROJECT` (sin necesidad de `GOOGLE_APPLICATION_CREDENTIALS`).
+
+### Modo 3: Vertex AI Express Mode (API Token Empresarial)
+Si cuentas con un token de Vertex AI Express Mode:
+
+```powershell
+# En Windows (PowerShell)
+$env:USE_VERTEX_AI="true"
+$env:VERTEX_EXPRESS_API_KEY="tu_vertex_express_api_key"
+```
+```bash
+# En Linux / macOS
+export USE_VERTEX_AI="true"
+export VERTEX_EXPRESS_API_KEY="tu_vertex_express_api_key"
+```
+
+### Modo 4: Gemini Developer API Token (Google AI Studio)
+Para ejecución directa mediante un API Token estándar de Gemini:
+
+```powershell
+# En Windows (PowerShell)
+$env:GEMINI_API_KEY="tu_gemini_api_key"
+```
+```bash
+# En Linux / macOS
+export GEMINI_API_KEY="tu_gemini_api_key"
+```
 
 ---
 
@@ -141,6 +191,7 @@ mpa_video_agents/
    ```bash
    python main.py
    ```
+   *(Al iniciar, la cabecera de la consola te confirmará qué modo de autenticación está activo: WIF, ADC, Vertex Express o Gemini API Key).*
 3. Ejemplo de instrucción para el Orquestador:
    > *"Revisa los videos y documentos disponibles en la carpeta de entradas, consulta además la documentación en https://ejemplo.com/reglas-facturacion y genera la Matriz de Pruebas de Aceptación usando el prefijo MPA-FAC-001."*
 

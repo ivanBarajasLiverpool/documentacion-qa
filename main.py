@@ -29,11 +29,13 @@ async def main() -> None:
     print(f"  • Salida Matrices (.md) : {OUTPUT_MATRICES_DIR}")
     print("-" * 78)
 
-    if not os.environ.get("GEMINI_API_KEY"):
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key or api_key == "tu_api_key_de_gemini_aqui":
         print(
-            "[AVISO] Variable GEMINI_API_KEY no detectada en el entorno.\n"
+            "[AVISO] Variable GEMINI_API_KEY no configurada.\n"
             "Consigue tu llave en: https://aistudio.google.com/app/api-keys\n"
-            "En PowerShell ejecuta: $env:GEMINI_API_KEY='tu_api_key'\n"
+            "Colócala en el archivo .env en la raíz del proyecto:\n"
+            '  GEMINI_API_KEY="tu_api_key_real"\n'
         )
 
     config = build_orchestrator_config()

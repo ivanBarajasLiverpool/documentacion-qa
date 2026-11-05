@@ -1,9 +1,34 @@
 """Configuración centralizada de rutas y parámetros del framework MPA."""
 
+import os
 from pathlib import Path
 
 # Raíz del proyecto
 BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
+
+
+def _load_env_file(env_path: Path) -> None:
+    """Carga variables del archivo .env usando python-dotenv o un parser nativo como respaldo."""
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(env_path)
+    except ImportError:
+        if not env_path.is_file():
+            return
+        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+# Carga automática de variables definidas en el archivo .env
+_load_env_file(BASE_DIR / ".env")
 
 # Directorio de Skills para cargar en LocalAgentConfig(skills_paths=...)
 SKILLS_DIR: Path = BASE_DIR / "skills"
@@ -18,10 +43,10 @@ OUTPUT_TRANSCRIPTS_DIR: Path = DATA_DIR / "outputs" / "transcripts"
 OUTPUT_FRAMES_DIR: Path = DATA_DIR / "outputs" / "frames"
 OUTPUT_MATRICES_DIR: Path = DATA_DIR / "outputs" / "matrices"
 
-# Parámetros por defecto de transcripción local
-DEFAULT_WHISPER_MODEL: str = "small"
-DEFAULT_WHISPER_COMPUTE_TYPE: str = "int8"
-DEFAULT_LANGUAGE: str = "es"
+# Parámetros por defecto de transcripción local (configurables desde .env)
+DEFAULT_WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "small")
+DEFAULT_WHISPER_COMPUTE_TYPE: str = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
+DEFAULT_LANGUAGE: str = os.getenv("WHISPER_LANGUAGE", "es")
 
 
 def ensure_directories() -> None:
