@@ -1,0 +1,77 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# Unit test / coverage / linting caches
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Data inputs and generated outputs (keep folder structure via .gitkeep)
+data/inputs/videos/*
+!data/inputs/videos/.gitkeep
+data/inputs/context_docs/*
+!data/inputs/context_docs/.gitkeep
+data/outputs/transcripts/*
+!data/outputs/transcripts/.gitkeep
+data/outputs/frames/*
+!data/outputs/frames/.gitkeep
+data/outputs/matrices/*
+!data/outputs/matrices/.gitkeep
+
+# Temporary media & Whisper model caches
+*.wav
+*.mp4
+*.mkv
+*.mov
+*.avi
+models/
+.cache/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
